@@ -4,15 +4,11 @@ import type { NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
     const start = Date.now();
 
-    // Clone the request headers and add start time
-    const requestHeaders = new Headers(request.headers);
-    requestHeaders.set('x-request-start', start.toString());
+    // Create the response first
+    const response = NextResponse.next();
 
-    const response = NextResponse.next({
-        request: {
-            headers: requestHeaders,
-        },
-    });
+    // Add request start time header
+    response.headers.set('x-request-start', start.toString());
 
     // Add response time header
     const duration = Date.now() - start;

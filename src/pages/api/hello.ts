@@ -1,6 +1,6 @@
 // src/pages/api/hello.ts
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { withMetrics } from '@/lib/withMetrics';
+import { withMetrics } from '../../lib/withMetrics';
 
 type Data = {
   name: string
