@@ -1,189 +1,148 @@
 pipeline {
-    agent any
-    environment {
-        AWS_REGION        = "us-east-1"
-        EKS_CLUSTER_NAME = "my-eks"
-          ECR_REPO          = "734468801857.dkr.ecr.us-east-1.amazonaws.com/my-ecr-repo"
-        IMAGE_TAG         = "${BUILD_NUMBER}"
-         SONAR_PROJECT_KEY = "reddit-4"
-        K8S_NAMESPACE     = "reddit"
-          GIT_REPO = "https://github.com/NTI-DevOps-Team/Reddit-K8s-Deployment.git"
-        
+  agent any
+
+  environment {
+    AWS_REGION        = "us-east-1"
+    EKS_CLUSTER_NAME  = "my-eks"
+    ECR_REPO          = "734468801857.dkr.ecr.us-east-1.amazonaws.com/my-ecr-repo"
+    IMAGE_TAG         = "${BUILD_NUMBER}"
+    K8S_NAMESPACE     = "reddit"
+    GIT_REPO          = "github.com/NTI-DevOps-Team/Reddit-K8s-Deployment.git"
+  }
+/*
+  stages {
+
+    stage('Checkout App Code') {
+      steps {
+        checkout scm
+      }
     }
-     
-    stages {
-        
 
+    stage('Build Docker Image') {
+      steps {
+        withCredentials([file(credentialsId: 'firebase-config', variable: 'ENV_FILE')]) {
+          sh '''
+            set -a
+            . "$ENV_FILE"
+            set +a
 
-        stage('Checkout Code') {
-            steps {
-                checkout scm
-            }
+            docker build \
+              --build-arg NEXT_PUBLIC_FIREBASE_API_KEY \
+              --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN \
+              --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID \
+              --build-arg NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET \
+              --build-arg NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID \
+              --build-arg NEXT_PUBLIC_FIREBASE_APP_ID \
+              --build-arg NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID \
+              -t $ECR_REPO:$IMAGE_TAG .
+          '''
         }
-
-//         stage('SonarQube Scan') {
-//             steps {
-//                 withSonarQubeEnv('sonarqube') {
-//                     sh '''
-//                     sonar-scanner \
-//                       -Dsonar.projectKey=$SONAR_PROJECT_KEY \
-//                       -Dsonar.sources=src \
-//                       -Dsonar.exclusions=node_modules/**,.next/**,coverage/**
-//                     '''
-//                 }
-//             }
-//         }
-
-//         // stage('Quality Gate') {
-//         //     steps {
-//         //         timeout(time: 15, unit: 'MINUTES') {
-//         //             waitForQualityGate abortPipeline: true
-//         //         }
-//         //     }
-//         // }
-
-// stage('OWASP Dependency Check') {
-//   steps {
-//     sh '''
-//       mkdir -p /var/jenkins_home/.dependency-check
-//       mkdir -p /var/jenkins_home/reports
-
-//       docker run --rm \
-//         -v /var/jenkins_home/workspace/$JOB_NAME:/src \
-//         -v /var/jenkins_home/reports:/report \
-//         -v /var/jenkins_home/.dependency-check:/root/.dependency-check \
-//         owasp/dependency-check \
-//         --project reddit-app \
-//         --scan /src \
-//         --format XML \
-//         --out /report
-//     '''
-//   }
-// }
-
-
-
- stage('Build Docker Image') {
-            steps {
-                withCredentials([
-                    file(credentialsId: 'firebase-config', variable: 'ENV_FILE')
-                ]) {
-                    sh '''
-                      echo "Loading env vars from secret file..."
-
-                      set -a
-                      . "$ENV_FILE"
-                      set +a
-
-                      echo "Building docker image..."
-
-                      docker build \
-                        --build-arg NEXT_PUBLIC_FIREBASE_API_KEY \
-                        --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN \
-                        --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID \
-                        --build-arg NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET \
-                        --build-arg NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID \
-                        --build-arg NEXT_PUBLIC_FIREBASE_APP_ID \
-                        --build-arg NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID \
-                        -t $ECR_REPO:$IMAGE_TAG .  
-                        
-                    '''
-                }
-            }
-        }
-
-
-
-
-
-       
-
-        stage('Trivy Image Scan') {
-  steps {
-    sh '''
-   
-    trivy image \
-      --exit-code 0 \
-      --severity HIGH,CRITICAL \
-      --format json \
-      --output trivy-image-report.json \
-      $ECR_REPO:$IMAGE_TAG
-    '''
-    archiveArtifacts artifacts: 'trivy-image-report.json', fingerprint: true
-  }
-}
-
-
-        stage('Login to ECR') {
-  steps {
-    withCredentials([[
-      $class: 'AmazonWebServicesCredentialsBinding',
-      credentialsId: 'aws-cred'
-    ]]) {
-      sh '''
-      
-        aws ecr get-login-password --region $AWS_REGION \
-        | docker login --username AWS --password-stdin $ECR_REPO
-      '''
+      }
     }
-  }
-}
 
-stage('Push Image to ECR') {
-  steps {
-    sh '''
-      docker push $ECR_REPO:$IMAGE_TAG
-    '''
-  }
-}
+    stage('Trivy Image Scan') {
+      steps {
+        sh '''
+          trivy image \
+            --exit-code 0 \
+            --severity HIGH,CRITICAL \
+            --format json \
+            --output trivy-image-report.json \
+            $ECR_REPO:$IMAGE_TAG
+        '''
+        archiveArtifacts artifacts: 'trivy-image-report.json', fingerprint: true
+      }
+    }
 
-stage('Update Deployment Image') {
-  steps {
-    sh '''
+    stage('Login to ECR') {
+      steps {
+        withCredentials([[
+          $class: 'AmazonWebServicesCredentialsBinding',
+          credentialsId: 'aws-cred'
+        ]]) {
+          sh '''
+            aws ecr get-login-password --region $AWS_REGION |
+            docker login --username AWS --password-stdin $ECR_REPO
+          '''
+        }
+      }
+    }
 
-     git clone https://github.com/NTI-DevOps-Team/Reddit-K8s-Deployment.git
-     
-      sed -i "s|^[[:space:]]*image:.*|    image: $ECR_REPO:$IMAGE_TAG|g" deployment.yaml
+    stage('Push Image to ECR') {
+      steps {
+        sh 'docker push $ECR_REPO:$IMAGE_TAG'
+      }
+    }
+*/
+    stage('Update Deployment Image (GitOps)') {
+      steps {
+        sh '''
+          rm -rf Reddit-K8s-Deployment
+          git clone https://$GIT_REPO
+          cd Reddit-K8s-Deployment
 
-    '''
-  }
-}
+          sed -i "s|image:.*|image: $ECR_REPO:$IMAGE_TAG|g" deployment.yaml
+        '''
+      }
+    }
 
-      stage('Commit & Push Deployment') {
-  steps {
-    withCredentials([usernamePassword(credentialsId: 'git-cred', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
-      sh '''
-        git config user.email "jenkins@gmail.com"
-        git config user.name "Jenkins CI"
+    stage('Commit & Push Deployment Repo') {
+      steps {
+        withCredentials([usernamePassword(
+          credentialsId: 'git-cred',
+          usernameVariable: 'GIT_USER',
+          passwordVariable: 'GIT_PASS'
+        )]) {
+          sh '''
+            cd Reddit-K8s-Deployment
 
-        git add deployment.yaml
-        git diff --cached --quiet || git commit -m "Update image to $IMAGE_TAG"
+            git config user.email "jenkins@gmail.com"
+            git config user.name "Jenkins CI"
 
-        
-        git remote remove jenkins || true
+            git add deployment.yaml
+            git diff --cached --quiet || git commit -m "Update image to $IMAGE_TAG"
 
-        
-        git remote add jenkins https://$GIT_USER:$GIT_PASS@$GIT_REPO
+            git remote remove jenkins || true
+            git remote add jenkins https://$GIT_USER:$GIT_PASS@$GIT_REPO
+            git push jenkins HEAD:main
+          '''
+        }
+      }
+    }
 
-        
-        git push jenkins HEAD:main
-      '''
+    stage('Deploy to EKS') {
+      steps {
+        withCredentials([[
+          $class: 'AmazonWebServicesCredentialsBinding',
+          credentialsId: 'aws-cred'
+        ]]) {
+          sh '''
+            aws eks update-kubeconfig \
+              --region $AWS_REGION \
+              --name $EKS_CLUSTER_NAME
+
+            kubectl apply -f Reddit-K8s-Deployment/deployment.yaml -n $K8S_NAMESPACE
+          '''
+        }
+      }
+    }
+
+    stage('Verify Rollout') {
+      steps {
+        sh '''
+          kubectl rollout status deployment/reddit-app -n $K8S_NAMESPACE
+          kubectl get pods -n $K8S_NAMESPACE
+        '''
+      }
     }
   }
-}
 
-
-       
-
+  post {
+    success {
+      echo "🚀 Reddit app deployed successfully!"
     }
-    post {
-        success {
-            echo "reddit-app deployed successfully to namespace reddit"
-        }
-        failure {
-            echo "Pipeline failed"
-        }
-        
-    
-}
+    failure {
+      echo "❌ Pipeline failed"
+    }
+  }
 }
