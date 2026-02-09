@@ -85,7 +85,7 @@ pipeline {
                         --build-arg NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID \
                         --build-arg NEXT_PUBLIC_FIREBASE_APP_ID \
                         --build-arg NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID \
-                        -t reddit-nextjs-app .  
+                        -t $ECR_REPO:$IMAGE_TAG .  
                         
                     '''
                 }
@@ -101,7 +101,7 @@ pipeline {
         stage('Trivy Image Scan') {
   steps {
     sh '''
-    docker tag  reddit-nextjs-app  $ECR_REPO:$IMAGE_TAG \
+   
     trivy image \
       --exit-code 0 \
       --severity HIGH,CRITICAL \
