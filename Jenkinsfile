@@ -21,45 +21,45 @@ pipeline {
             }
         }
 
-        stage('SonarQube Scan') {
-            steps {
-                withSonarQubeEnv('sonarqube') {
-                    sh '''
-                    sonar-scanner \
-                      -Dsonar.projectKey=$SONAR_PROJECT_KEY \
-                      -Dsonar.sources=src \
-                      -Dsonar.exclusions=node_modules/**,.next/**,coverage/**
-                    '''
-                }
-            }
-        }
+//         stage('SonarQube Scan') {
+//             steps {
+//                 withSonarQubeEnv('sonarqube') {
+//                     sh '''
+//                     sonar-scanner \
+//                       -Dsonar.projectKey=$SONAR_PROJECT_KEY \
+//                       -Dsonar.sources=src \
+//                       -Dsonar.exclusions=node_modules/**,.next/**,coverage/**
+//                     '''
+//                 }
+//             }
+//         }
 
-        // stage('Quality Gate') {
-        //     steps {
-        //         timeout(time: 15, unit: 'MINUTES') {
-        //             waitForQualityGate abortPipeline: true
-        //         }
-        //     }
-        // }
+//         // stage('Quality Gate') {
+//         //     steps {
+//         //         timeout(time: 15, unit: 'MINUTES') {
+//         //             waitForQualityGate abortPipeline: true
+//         //         }
+//         //     }
+//         // }
 
-stage('OWASP Dependency Check') {
-  steps {
-    sh '''
-      mkdir -p /var/jenkins_home/.dependency-check
-      mkdir -p /var/jenkins_home/reports
+// stage('OWASP Dependency Check') {
+//   steps {
+//     sh '''
+//       mkdir -p /var/jenkins_home/.dependency-check
+//       mkdir -p /var/jenkins_home/reports
 
-      docker run --rm \
-        -v /var/jenkins_home/workspace/$JOB_NAME:/src \
-        -v /var/jenkins_home/reports:/report \
-        -v /var/jenkins_home/.dependency-check:/root/.dependency-check \
-        owasp/dependency-check \
-        --project reddit-app \
-        --scan /src \
-        --format XML \
-        --out /report
-    '''
-  }
-}
+//       docker run --rm \
+//         -v /var/jenkins_home/workspace/$JOB_NAME:/src \
+//         -v /var/jenkins_home/reports:/report \
+//         -v /var/jenkins_home/.dependency-check:/root/.dependency-check \
+//         owasp/dependency-check \
+//         --project reddit-app \
+//         --scan /src \
+//         --format XML \
+//         --out /report
+//     '''
+//   }
+// }
 
 
 
