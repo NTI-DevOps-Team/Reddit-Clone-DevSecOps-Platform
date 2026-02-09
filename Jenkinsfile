@@ -111,21 +111,27 @@ pipeline {
     }
 
     stage('Deploy to EKS') {
-      steps {
-        withCredentials([[
-          $class: 'AmazonWebServicesCredentialsBinding',
-          credentialsId: 'aws-cred'
-        ]]) {
-          sh '''
-            aws eks update-kubeconfig \
-              --region $AWS_REGION \
-              --name $EKS_CLUSTER_NAME
+  steps {
+    withCredentials([[
+      $class: 'AmazonWebServicesCredentialsBinding',
+      credentialsId: 'aws-cred'
+    ]]) {
+      sh '''
+        # Ensure kube directory exists and is writable
+        mkdir -p $HOME/.kube
+        chmod 700 $HOME/.kube
 
-            kubectl apply -f Reddit-K8s-Deployment/deployment.yaml -n $K8S_NAMESPACE
-          '''
-        }
-      }
+        aws eks update-kubeconfig \
+          --region $AWS_REGION \
+          --name $EKS_CLUSTER_NAME \
+          --kubeconfig $HOME/.kube/config
+
+        kubectl apply -f Reddit-K8s-Deployment/deployment.yaml -n $K8S_NAMESPACE
+      '''
     }
+  }
+}
+
 
     stage('Verify Rollout') {
       steps {
