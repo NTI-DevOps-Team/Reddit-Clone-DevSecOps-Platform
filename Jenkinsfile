@@ -9,7 +9,7 @@ pipeline {
     K8S_NAMESPACE     = "reddit"
     GIT_REPO          = "github.com/NTI-DevOps-Team/Reddit-K8s-Deployment.git"
   }
-/*
+
   stages {
 
     stage('Checkout App Code') {
@@ -17,7 +17,7 @@ pipeline {
         checkout scm
       }
     }
-
+/*
     stage('Build Docker Image') {
       steps {
         withCredentials([file(credentialsId: 'firebase-config', variable: 'ENV_FILE')]) {
